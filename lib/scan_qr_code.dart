@@ -1,14 +1,9 @@
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:mobile_scanner/mobile_scanner.dart' as ms;
-import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart'
-as mlkit;
-
-
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 class ScanQrCode extends StatefulWidget {
   const ScanQrCode({super.key});
@@ -20,11 +15,7 @@ class ScanQrCode extends StatefulWidget {
 class _ScanQrCodeState extends State<ScanQrCode> {
   String qrResult = "Scanned Data will appear here";
 
-  ms.MobileScannerController cameraController = ms.MobileScannerController(
-    torchEnabled: false, // Initialize with flashlight off
-  );
-  bool _isTorchOn = false;
-
+  MobileScannerController cameraController = MobileScannerController();
 
   @override
   void dispose() {
@@ -34,48 +25,81 @@ class _ScanQrCodeState extends State<ScanQrCode> {
 
   // Function to pick and scan QR code from gallery
   Future<void> scanFromGallery() async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image == null) {
+        if (!mounted) return;
+        setState(() {
+          qrResult = "No image selected";
+        });
+        return;
+      }
 
-    if (image == null) return;
-
-    final inputImage = mlkit.InputImage.fromFilePath(image.path);
-    final barcodeScanner = mlkit.BarcodeScanner();
-
-    final List<mlkit.Barcode> barcodes = await barcodeScanner.processImage(inputImage);
-
-    if (barcodes.isNotEmpty) {
+      // Show dialog to preview the image
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          content: Image.file(File(image.path), height: 200),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context), // Cancel scanning
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context); // Close preview dialog
+                // Scan the image for QR code
+                final BarcodeCapture? result = await cameraController.analyzeImage(image.path);
+                if (!mounted) return;
+                if (result != null && result.barcodes.isNotEmpty) {
+                  final String? qrCode = result.barcodes.first.rawValue;
+                  if (qrCode != null) {
+                    setState(() {
+                      qrResult = qrCode;
+                    });
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('QR Code'),
+                        content: Text(qrCode),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    setState(() {
+                      qrResult = "No QR code found in image";
+                    });
+                  }
+                } else {
+                  setState(() {
+                    qrResult = "No QR code found in image";
+                  });
+                }
+              },
+              child: const Text('Scan'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
-        qrResult = barcodes.first.rawValue ?? "No data";
-      });
-    } else {
-      setState(() {
-        qrResult = "No QR code found in image";
+        qrResult = "Error: $e";
       });
     }
-
-    barcodeScanner.close();
   }
   //Future<void> means the function
   // will complete in the future,
   // but it won’t return any value.
   //async tells Dart this function involves asynchronous work.
   // await pauses execution until the task (like Future.delayed) finishes.
-
-  void switchFlashLight() async {
-    try {
-      await cameraController.toggleTorch();
-      setState(() {
-        _isTorchOn = !_isTorchOn;
-        qrResult = _isTorchOn ? "Flashlight ON" : "Flashlight OFF";
-      });
-    } catch (e) {
-      setState(() {
-        qrResult = "Error toggling flashlight: Flashlight may not be available";
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,18 +112,18 @@ class _ScanQrCodeState extends State<ScanQrCode> {
             // Camera view for scanning
             SizedBox(
               height: 300, // Adjust height as needed
-              child:  ms.MobileScanner(
+              child: MobileScanner(
                 controller: cameraController,
-                onDetect: (ms.BarcodeCapture capture) async {
+                onDetect: (BarcodeCapture capture) async {
                   if (!mounted) return;
-                  final List<ms.Barcode> barcodes = capture.barcodes;
+                  final List<Barcode> barcodes = capture.barcodes;
                   for (final barcode in barcodes) {
                     final String? qrCode = barcode.rawValue;
                     if (qrCode != null) {
                       await cameraController.stop(); // Stop scanning
                       if (!mounted) return;
                       setState(() {
-                        qrResult = qrCode;
+                        qrResult = qrCode; // Update result
                       });
                       showDialog(
                         context: context,
@@ -110,14 +134,14 @@ class _ScanQrCodeState extends State<ScanQrCode> {
                             TextButton(
                               onPressed: () {
                                 Navigator.pop(context);
-                                cameraController.start();
+                                cameraController.start(); // Resume scanning
                               },
                               child: const Text('OK'),
                             ),
                           ],
                         ),
                       );
-                      break;
+                      break; // Stop after first valid QR code
                     }
                   }
                 },
@@ -131,7 +155,6 @@ class _ScanQrCodeState extends State<ScanQrCode> {
               children: [
                 ElevatedButton(
                   onPressed: () {
-                    cameraController.stop();
                     cameraController.start(); // Restart camera scanning
                   },
                   child: const Text("Scan with Camera"),
@@ -141,7 +164,6 @@ class _ScanQrCodeState extends State<ScanQrCode> {
                   onPressed: scanFromGallery, // New button for gallery scanning
                   child: const Text("Scan from Gallery"),
                 ),
-                const SizedBox(width: 10),
               ],
             ),
           ],
