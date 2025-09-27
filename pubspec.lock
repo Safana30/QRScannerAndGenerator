@@ -128,6 +128,22 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  google_mlkit_barcode_scanning:
+    dependency: "direct main"
+    description:
+      name: google_mlkit_barcode_scanning
+      sha256: "63a06ec2de2941094698d5a090225ee05317d7f0b4e761a0b10cebc703c0aadd"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.0"
+  google_mlkit_commons:
+    dependency: transitive
+    description:
+      name: google_mlkit_commons
+      sha256: af63771903947d5523d9e991a939a4b8bf994f11661c9b9c8a71d7d3997115f8
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
   http:
     dependency: transitive
     description:
@@ -276,10 +292,10 @@ packages:
     dependency: "direct main"
     description:
       name: mobile_scanner
-      sha256: d234581c090526676fd8fab4ada92f35c6746e3fb4f05a399665d75a399fb760
+      sha256: "0b466a0a8a211b366c2e87f3345715faef9b6011c7147556ad22f37de6ba3173"
       url: "https://pub.dev"
     source: hosted
-    version: "5.2.3"
+    version: "6.0.11"
   path:
     dependency: transitive
     description:
