@@ -1,0 +1,29 @@
+workflows:
+  flutter-workflow:
+    name: Build Android & iOS
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Clean Flutter & iOS Pods
+        script: |
+          flutter clean
+          rm -rf ios/Pods ios/Podfile.lock
+          cd ios
+          pod repo update
+          pod install
+          cd ..
+      - name: Get dependencies
+        script: flutter pub get
+      - name: Build Android AAB
+        script: flutter build appbundle --release
+      - name: Build iOS IPA
+        script: flutter build ios --release --no-codesign
+    artifacts:
+      - build/**/outputs/**/*.aab
+      - build/ios/ipa/*.ipa
+    publishing:
+      email:
+        recipients:
+          - safanasheen0130@gmail.com
